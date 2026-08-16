@@ -9,11 +9,21 @@ const repos = [
   ["astral-sh", "ruff", "Spike-only public repo."],
 ] as const;
 
-for (const [owner, name, note] of repos) {
-  const existing = await getDb().select().from(repository);
-  if (!existing.some((row) => row.owner === owner && row.name === name)) {
-    await getDb().insert(repository).values({ owner, name, note, enabled: true });
+async function main() {
+  try {
+    const existing = await getDb().select().from(repository);
+    for (const [owner, name, note] of repos) {
+      if (!existing.some((row) => row.owner === owner && row.name === name)) {
+        await getDb().insert(repository).values({ owner, name, note, enabled: true });
+      }
+    }
+    console.log("SEED_OK");
+  } finally {
+    await getPool().end();
   }
 }
-await getPool().end();
-console.log("SEED_OK");
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
