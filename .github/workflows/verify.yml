@@ -1,0 +1,51 @@
+name: Verify
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: issue_scout
+          POSTGRES_PASSWORD: issue_scout
+          POSTGRES_DB: issue_scout
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U issue_scout -d issue_scout"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://issue_scout:issue_scout@localhost:5432/issue_scout
+      APP_BASE_URL: http://localhost:3000
+      ALLOWED_GITHUB_USER_ID: "211133238"
+      GITHUB_CLIENT_ID: test-client-id
+      GITHUB_CLIENT_SECRET: test-client-secret
+      TOKEN_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SESSION_SECRET: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Clean install
+        run: npm install
+      - name: Generate migrations
+        run: npm run db:generate
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Seed database
+        run: npm run db:seed
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Production build
+        run: npm run build
